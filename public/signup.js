@@ -1,10 +1,25 @@
-document.getElementById('signup-form').addEventListener('submit', function(e){
-    e.preventDefault(); 
+document.getElementById('signup-form').addEventListener('submit', function(e) {
+    e.preventDefault();
 
-    const name = document.getElementById('name').value;
-    const email = document.getElementById('email').value;
-    const phone = document.getElementById('phone').value;
-    const password = document.getElementById('password').value;
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const password = document.getElementById('password').value.trim();
 
-    console.log(name, email, phone, password);
-})
+    // Clear any previous error
+    document.getElementById('email-error').innerText = '';
+
+    axios.post('http://localhost:5000/signup', { name, email, phone, password })
+        .then(res => {
+            alert('Signup successful!');
+            window.location.href = '/login.html'; // redirect to login
+        })
+        .catch(err => {
+            if (err.response && err.response.status === 400) {
+                document.getElementById('email-error').innerText = err.response.data.message;
+            } else {
+                alert('Signup failed. Please try again.');
+                console.error(err);
+            }
+        });
+});
