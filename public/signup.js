@@ -12,11 +12,13 @@ document.getElementById('signup-form').addEventListener('submit', function(e) {
     axios.post('http://localhost:5000/signup', { name, email, phone, password })
         .then(res => {
             alert('Signup successful!');
-            window.location.href = '/login.html'; // redirect to login
+            window.location.href = 'http://127.0.0.1:5500/public/login.html'; // redirect to login
         })
         .catch(err => {
             if (err.response && err.response.status === 400) {
                 document.getElementById('email-error').innerText = err.response.data.message;
+                alert("User already exists, Please Login"); // Deliverable: ✅
+
             } else {
                 alert('Signup failed. Please try again.');
                 console.error(err);

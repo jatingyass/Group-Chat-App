@@ -7,7 +7,17 @@ const sequelize = require('./config/db');
 dotenv.config();
 const app = express();
 
-app.use(cors());
+
+//setup CORS 
+const corsOptions = {
+    origin: 'http://127.0.0.1:5500', // Frontend origin
+    methods: ['GET', 'POST', 'OPTIONS'],
+    credentials: true,
+};
+
+app.use(cors(corsOptions));
+
+
 app.use(express.json());
 app.use(express.static('public'));
 
