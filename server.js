@@ -23,11 +23,11 @@ app.use(express.static('public'));
 
 const signupRoute = require('./routes/signupRoutes');
 const loginRoute = require('./routes/loginRoutes');
-
+const messageRoute = require('./routes/messageRoutes');
 
 app.use('/', signupRoute);
 app.use('/', loginRoute);
-
+app.use('/', messageRoute);
 
 
 sequelize.sync()
