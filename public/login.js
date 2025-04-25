@@ -8,8 +8,13 @@ document.getElementById("login-form").addEventListener("submit", async function(
         const response = await axios.post('http://localhost:5000/login', {email, password});
         if (response.data.success) {
             alert("Login successful!");
-    
-            window.location.href = '/dashboard'; 
+            localStorage.setItem('token', response.data.token); 
+            localStorage.setItem('id', response.data.id);
+
+            console.log("Token:", response.data.token);
+            console.log("User ID:", response.data.id);
+
+            window.location.href = 'http://127.0.0.1:5500/public/chat.html'; 
         }else {
             document.getElementById('error-msg').innerText = response.data.message;
         }
