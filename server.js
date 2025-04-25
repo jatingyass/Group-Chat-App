@@ -22,8 +22,11 @@ app.use(express.json());
 app.use(express.static('public'));
 
 const signupRoute = require('./routes/signupRoutes');
-app.use('/', signupRoute);
+const loginRoute = require('./routes/loginRoutes');
 
+
+app.use('/', signupRoute);
+app.use('/', loginRoute);
 
 
 
