@@ -11,11 +11,13 @@ const app = express();
 //setup CORS 
 const corsOptions = {
     origin: 'http://127.0.0.1:5500', // Frontend origin
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
     credentials: true,
 };
 
 app.use(cors(corsOptions));
+// app.options('*', cors(corsOptions)); 
+
 
 
 app.use(express.json());

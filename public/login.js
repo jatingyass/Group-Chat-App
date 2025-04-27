@@ -5,16 +5,16 @@ document.getElementById("login-form").addEventListener("submit", async function(
     const password = document.getElementById("password").value;
 
     try {
-        const response = await axios.post('http://localhost:5000/login', {email, password});
+        const response = await axios.post('http://localhost:5000/login', {email, password}, {withCredentials: true});
         if (response.data.success) {
             alert("Login successful!");
+            window.location.href = 'http://127.0.0.1:5500/public/chat.html'; // redirect to login
+            
             localStorage.setItem('token', response.data.token); 
-            localStorage.setItem('id', response.data.id);
-
-            console.log("Token:", response.data.token);
-            console.log("User ID:", response.data.id);
-
-            window.location.href = 'http://127.0.0.1:5500/public/chat.html'; 
+            localStorage.setItem('id', response.data.user.id);  
+            localStorage.setItem('name', response.data.user.name); 
+        
+            
         }else {
             document.getElementById('error-msg').innerText = response.data.message;
         }

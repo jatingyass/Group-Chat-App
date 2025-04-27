@@ -1,4 +1,3 @@
-
 module.exports = (sequelize, DataTypes) => {
     const Message = sequelize.define("Message", {
         id: {
@@ -8,6 +7,10 @@ module.exports = (sequelize, DataTypes) => {
         },
         userId: {
             type: DataTypes.INTEGER,
+            allowNull: false,
+        },
+        userName: {    // 🆕 Add this field
+            type: DataTypes.STRING,
             allowNull: false,
         },
         message: {

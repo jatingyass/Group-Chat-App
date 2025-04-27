@@ -1,45 +1,47 @@
-const messagesDiv   = document.getElementById('messages');
-const messageForm   = document.getElementById('message-form');
-const messageInput  = document.getElementById('message-input');
+const messagesDiv = document.getElementById('messages');
+const messageForm = document.getElementById('message-form');
+const messageInput = document.getElementById('message-input');
 
-const token  = localStorage.getItem('token');
+const token = localStorage.getItem('token');
 const userId = localStorage.getItem('id');
+const userName = localStorage.getItem('name'); 
 
-// 1️⃣ Start with an empty array (or fetch from server)
 let messages = [];
-
-// 2️⃣ Optionally load previous messages:
-// axios.get('http://localhost:5000/api/messages', { headers: { Authorization: `Bearer ${token}` } })
-//   .then(res => {
-//     messages = res.data.messages;   // must be an array
-//     renderMessages();
-//   });
 
 function renderMessages() {
   messagesDiv.innerHTML = '';
   messages.forEach(msg => {
     const div = document.createElement('div');
     div.classList.add('message');
-    div.innerHTML = `<strong>${msg.user}:</strong> ${msg.text}`;
+    div.innerHTML = `<strong>${parseInt(msg.userId) == parseInt(userId) ? 'You' : msg.userName}:</strong> ${msg.message}`;
     messagesDiv.appendChild(div);
   });
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// initial render (will show nothing until messages is populated)
-renderMessages();
+async function loadMessages() {
+  try {
+    const res = await axios.get('http://localhost:5000/messages', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    messages = res.data.data;
+    renderMessages();
+  } catch (err) {
+    console.error('Failed to load messages:', err);
+  }
+}
+
+window.addEventListener('load', loadMessages);
 
 messageForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const text = messageInput.value.trim();
   if (!text) return;
 
-  // Add to local array and re-render
-  messages.push({ user: 'You', text });
+  messages.push({ userId: userId, userName: userName, message: text });
   renderMessages();
   messageInput.value = '';
 
-  // Persist to server
   try {
     const res = await axios.post(
       'http://localhost:5000/messages',
@@ -51,3 +53,6 @@ messageForm.addEventListener('submit', async (e) => {
     console.error('Failed to save message:', err);
   }
 });
+
+// Auto-refresh every 5 sec (Optional)
+setInterval(loadMessages, 1000);
