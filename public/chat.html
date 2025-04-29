@@ -15,15 +15,29 @@
     <div class="row vh-100">
 
       <!-- Groups Section -->
-      <div class="col-md-3 bg-white border-end p-3">
+      <!-- <div class="col-md-3 bg-white border-end p-3">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h4>Groups</h4>
           <button id="create-group-btn" class="btn btn-sm btn-success">+</button>
         </div>
         <div id="groups" class="d-flex flex-column">
-          <!-- Groups will be listed here -->
+          <!- Groups will be listed here --
         </div>
-      </div>
+      </div> -->
+      <!-- Groups Section -->
+<div class="col-md-3 bg-white border-end p-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Groups</h4>
+    <div>
+      <button id="create-group-btn" class="btn btn-sm btn-success me-2">+</button>
+      <button id="invite-user-btn" class="btn btn-sm btn-primary">Invite</button>
+    </div>
+  </div>
+  <div id="groups" class="d-flex flex-column">
+    <!-- Groups will be listed here -->
+  </div>
+</div>
+
 
       <!-- Messages Section -->
       <div class="col-md-9 d-flex flex-column">
@@ -32,6 +46,7 @@
         <div class="bg-primary text-white p-3">
           <h4 id="current-group-name" class="mb-0">Select a Group</h4>
         </div>
+        
 
         <!-- Messages -->
         <div id="messages" class="flex-grow-1 p-3 overflow-auto" style="background-color: #f8f9fa;">

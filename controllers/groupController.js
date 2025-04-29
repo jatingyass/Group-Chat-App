@@ -1,6 +1,6 @@
 // controllers/groupController.js
 
-const { Group, GroupMember, Message } = require('../models');
+const { Group, GroupMember, Message, User } = require('../models');
 
 exports.createGroup = async (req, res) => {
   try {
@@ -89,5 +89,31 @@ exports.getGroupMessages = async (req, res) => {
   } catch (err) {
     console.error("Error fetching group messages:", err);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+exports.inviteUser = async (req, res) => {
+  const { groupId } = req.params;
+  const { email } = req.body;
+
+  try {
+    console.log("Inviting:", email, "to group:", groupId);
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      console.log("User not found");
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const existingMember = await GroupMember.findOne({ where: { groupId, userId: user.id } });
+    if (existingMember) {
+      console.log("User already in group");
+      return res.status(400).json({ message: 'User already in group.' });
+    }
+
+    await GroupMember.create({ groupId, userId: user.id });
+    res.status(200).json({ message: 'User invited successfully.' });
+  } catch (error) {
+    console.log("Error inviting user:", error);
+    res.status(500).json({ message: 'Server error.' });
   }
 };

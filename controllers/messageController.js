@@ -60,6 +60,7 @@
 // controllers/messageController.js
 
 const { GroupMember, Message } = require('../models');
+const { Op } = require('sequelize');
 
 exports.sendMessage = async (req, res) => {
   try {
