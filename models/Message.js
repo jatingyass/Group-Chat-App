@@ -9,8 +9,12 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             allowNull: false,
         },
-        userName: {    // 🆕 Add this field
+        userName: {    
             type: DataTypes.STRING,
+            allowNull: false,
+        },
+        groupId: {
+            type: DataTypes.INTEGER,
             allowNull: false,
         },
         message: {
