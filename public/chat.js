@@ -170,3 +170,4 @@ window.addEventListener('DOMContentLoaded', () => {
   loadGroups();
 });
 setInterval(loadMessages, 1000);
+

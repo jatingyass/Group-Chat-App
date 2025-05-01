@@ -82,7 +82,7 @@ exports.getGroupMessages = async (req, res) => {
     const messages = await Message.findAll({
       where: { groupId },
       order: [['createdAt', 'ASC']],
-      limit: 20,
+      // limit: 20,
     });
 
     res.status(200).json({ success: true, data: messages });
@@ -117,3 +117,69 @@ exports.inviteUser = async (req, res) => {
     res.status(500).json({ message: 'Server error.' });
   }
 };
+
+
+
+// promoteToAdmin.js
+exports.promoteToAdmin = async (req, res) => {
+  const { groupId } = req.params;
+  const { userNameToPromote } = req.body;
+  
+  console.log("🟡 Promote request received for groupId:", groupId, "and user:", userNameToPromote);
+
+
+  try {
+    // Step 1: Find the user by name
+    const user = await User.findOne({ where: { name: userNameToPromote } });
+    console.log("🔵 Found user:", user);
+
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Step 2: Check if user is a group member
+    const member = await GroupMember.findOne({ where: { groupId, userId: user.id } });
+    console.log("🟣 Found group member:", member);
+
+    if (!member) {
+      return res.status(404).json({ message: 'User is not a member of the group.' });
+    }
+
+    // Step 3: Promote to admin
+    member.is_admin = true;
+    await member.save();
+
+    console.log("✅ User promoted successfully");
+
+    res.status(200).json({ message: 'User promoted to admin.' });
+  } catch (error) {
+    console.error("❌ Error promoting user:", error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
+
+
+exports.removeMember = async (req, res) => {
+  const { groupId } = req.params;
+  const { userIdToRemove } = req.body;
+  
+    console.log("Promote Request: ", { groupId, userNameToPromote });
+
+  try {
+    const member = await GroupMember.findOne({ where: { groupId, userId: userIdToRemove } });
+
+    if (!member) {
+      return res.status(404).json({ message: 'User is not a member of the group.' });
+    }
+
+    await member.destroy();
+
+    res.status(200).json({ message: 'User removed from the group.' });
+  } catch (error) {
+    console.error("Error removing member:", error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+

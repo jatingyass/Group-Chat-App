@@ -10,7 +10,7 @@ const app = express();
 
 //setup CORS 
 const corsOptions = {
-    origin: 'http://127.0.0.1:5500', // Frontend origin
+    origin: 'http://127.0.0.1:5501', // Frontend origin
     methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
     credentials: true,
 };

@@ -13,6 +13,17 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
        allowNull: false 
       },
+      is_admin: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
+      added_by: {
+        type: DataTypes.INTEGER,
+        REFERENCES: {
+          model: 'Users',
+          key: 'id',
+        },
+      },
   }, {
     timestamps: true,
   });

@@ -2,7 +2,7 @@
 
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
-const { User } = require('../models');
+const { User, GroupMember } = require('../models');
 
 dotenv.config();
 
@@ -28,18 +28,43 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
 
-    // Attach user to request
+    
     req.user = {
       id: user.id,
       name: user.name,
       
     };
 
-    next(); // continue to controller
+    next(); 
   } catch (err) {
     console.error("Authentication error:", err);
     res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 };
 
-module.exports = authenticate;
+
+const isGroupAdmin = async (req, res, next) => {
+  try {
+    const { groupId } = req.params;
+    const userId = req.user.id;
+
+    const admin = await GroupMember.findOne({
+      where: {
+        groupId,
+        userId,
+        is_admin: true
+      }
+    });
+
+    if (!admin) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    next();
+  } catch (err) {
+    console.error("Admin check error:", err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = {authenticate, isGroupAdmin};
