@@ -7,9 +7,9 @@ exports.createGroup = async (req, res) => {
     const { name, members } = req.body;
     const userId = req.user.id;  // login user id (token se)
 
-    const group = await Group.create({ name, createdBy: userId });
+    const group = await Group.create({ name, createdBy: userId});
 
-    await GroupMember.create({ groupId: group.id, userId: userId });
+    await GroupMember.create({ groupId: group.id, userId: userId, is_admin: true });
 
     // Add other members too
     if (members && members.length > 0) {
@@ -92,6 +92,7 @@ exports.getGroupMessages = async (req, res) => {
   }
 };
 
+//invite user to member
 exports.inviteUser = async (req, res) => {
   const { groupId } = req.params;
   const { email } = req.body;
@@ -99,6 +100,7 @@ exports.inviteUser = async (req, res) => {
   try {
     console.log("Inviting:", email, "to group:", groupId);
     const user = await User.findOne({ where: { email } });
+    
     if (!user) {
       console.log("User not found");
       return res.status(404).json({ message: 'User not found.' });
@@ -110,7 +112,11 @@ exports.inviteUser = async (req, res) => {
       return res.status(400).json({ message: 'User already in group.' });
     }
 
-    await GroupMember.create({ groupId, userId: user.id });
+    const isAdmin = await GroupMember.create({ groupId, userId: user.id });
+      console.log("isAdmin", isAdmin);
+     if (!isAdmin) {
+      return res.status(403).json({ message: 'Only admins can invite users.' });
+    }
     res.status(200).json({ message: 'User invited successfully.' });
   } catch (error) {
     console.log("Error inviting user:", error);
@@ -119,30 +125,29 @@ exports.inviteUser = async (req, res) => {
 };
 
 
-
 // promoteToAdmin.js
 exports.promoteToAdmin = async (req, res) => {
   const { groupId } = req.params;
   const { userNameToPromote } = req.body;
-  
-  console.log("🟡 Promote request received for groupId:", groupId, "and user:", userNameToPromote);
 
+  console.log("🟡 Promote request received for groupId:", groupId, "and user:", userNameToPromote);
 
   try {
     // Step 1: Find the user by name
     const user = await User.findOne({ where: { name: userNameToPromote } });
-    console.log("🔵 Found user:", user);
-
 
     if (!user) {
+      console.log("❌ User not found.");
       return res.status(404).json({ message: 'User not found.' });
     }
 
     // Step 2: Check if user is a group member
-    const member = await GroupMember.findOne({ where: { groupId, userId: user.id } });
-    console.log("🟣 Found group member:", member);
+    const member = await GroupMember.findOne({
+      where: { groupId: parseInt(groupId), userId: user.id }
+    });
 
     if (!member) {
+      console.log("❌ Not a group member.");
       return res.status(404).json({ message: 'User is not a member of the group.' });
     }
 
@@ -151,7 +156,6 @@ exports.promoteToAdmin = async (req, res) => {
     await member.save();
 
     console.log("✅ User promoted successfully");
-
     res.status(200).json({ message: 'User promoted to admin.' });
   } catch (error) {
     console.error("❌ Error promoting user:", error);
@@ -160,17 +164,27 @@ exports.promoteToAdmin = async (req, res) => {
 };
 
 
-
 exports.removeMember = async (req, res) => {
   const { groupId } = req.params;
-  const { userIdToRemove } = req.body;
-  
-    console.log("Promote Request: ", { groupId, userNameToPromote });
+  const { userEmailToRemove } = req.body;
+
+  console.log("Remove Request: ", { groupId, userEmailToRemove });
 
   try {
-    const member = await GroupMember.findOne({ where: { groupId, userId: userIdToRemove } });
+    // ✅ Fix here: search by email
+    const user = await User.findOne({ where: { email: userEmailToRemove } });
+
+    if (!user) {
+      console.log("❌ User not found.");
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const member = await GroupMember.findOne({
+      where: { groupId: parseInt(groupId), userId: user.id }
+    });
 
     if (!member) {
+      console.log("❌ Not a group member.");
       return res.status(404).json({ message: 'User is not a member of the group.' });
     }
 
@@ -182,4 +196,3 @@ exports.removeMember = async (req, res) => {
     res.status(500).json({ message: 'Server error.' });
   }
 };
-

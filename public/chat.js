@@ -38,10 +38,15 @@ document.getElementById('create-group-btn').addEventListener('click', async () =
   if (!groupName) return;
 
   try {
-    await axios.post('http://localhost:5000/groups', 
+   const response = await axios.post('http://localhost:5000/groups', 
       { name: groupName }, 
       { headers: { Authorization: `Bearer ${token}` } }
     );
+
+    
+    const groupId = response.data.data.id; // Extract groupId
+    localStorage.setItem('groupId', groupId);
+     
     alert('Group created successfully!');
     loadGroups();
   } catch (err) {
@@ -53,6 +58,7 @@ document.getElementById('create-group-btn').addEventListener('click', async () =
 // Invite User to Group
 document.getElementById('invite-user-btn').addEventListener('click', async () => {
   const email = prompt('Enter the email of the user to invite:');
+   console.log("currentGroupId", currentGroupId);
   if (!email || !currentGroupId) return;
 
   try {
@@ -75,14 +81,6 @@ function selectGroup(groupId, groupName) {
   localStorage.removeItem('messages');
   renderMessages();
   loadMessages();
-  if (messageInterval) {
-    clearInterval(messageInterval);
-  }
-
-  messageInterval = setInterval(() => {
-    loadMessages();
-  }, 1000);
-  
 }
 
 
@@ -165,9 +163,62 @@ messageForm.addEventListener('submit', async (e) => {
   }
 });
 
+
+
+document.addEventListener('DOMContentLoaded', function () {
+  const token = localStorage.getItem('token');
+  console.log("Token:", token); 
+
+  // Promote to Admin Button Click
+  document.getElementById('promote-user-btn').addEventListener('click', async () => {
+    const groupId = localStorage.getItem('groupId');
+    console.log("Group ID:", groupId);
+    console.log("chl reha h bhai admin button ");
+    const userName = prompt('Enter the username to promote to admin:');
+    if (!userName) {
+      alert("Please enter a username to promote.");
+      return;
+    }
+
+    try {
+      const response = await axios.post(`http://localhost:5000/groups/${groupId}/promote`,
+        { userNameToPromote: userName },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+       alert(response.data.message);
+    } catch (error) {
+      console.error("Error:", error.response?.data || error.message);
+      alert(error.response?.data?.message || "Something went wrong!");
+    }
+  });
+
+    // Remove Member Button Click
+    document.getElementById('remove-user-btn').addEventListener('click', async () => {
+      const userEmailToRemove = prompt('Enter the email of the user to remove:');
+      if (!userEmailToRemove || !currentGroupId) return;
+    
+      try {
+        await axios.post(
+          `http://localhost:5000/groups/${currentGroupId}/remove`, // Make sure route matches your backend
+          { userEmailToRemove },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+    
+        alert('User removed successfully!');
+      } catch (err) {
+        console.error('Failed to remove user:', err.response?.data || err.message);
+        alert('Failed to remove user.');
+      }
+    });
+    
+});
 // Initial Load
 window.addEventListener('DOMContentLoaded', () => {
   loadGroups();
 });
 setInterval(loadMessages, 1000);
-
