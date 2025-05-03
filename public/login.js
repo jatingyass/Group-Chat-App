@@ -1,3 +1,7 @@
+
+const baseURL = 'http://13.203.210.30:5000';
+
+
 document.getElementById("login-form").addEventListener("submit", async function(event) {
     event.preventDefault(); 
 
@@ -5,16 +9,16 @@ document.getElementById("login-form").addEventListener("submit", async function(
     const password = document.getElementById("password").value;
 
     try {
-        const response = await axios.post('http://localhost:5000/login', {email, password}, {withCredentials: true});
+        const response = await axios.post(`${baseURL}/login`, {email, password}, {withCredentials: true});
         if (response.data.success) {
-            alert("Login successful!");
-            window.location.href = 'http://127.0.0.1:5501/public/chat.html'; // redirect to login
-            
-            localStorage.setItem('token', response.data.token); 
-            localStorage.setItem('id', response.data.user.id);  
-            localStorage.setItem('name', response.data.user.name); 
         
-            
+            localStorage.setItem('token', response.data.token);
+             console.log("token login ke baad ", localStorage.getItem('token'));
+            localStorage.setItem('id', response.data.user.id);
+            localStorage.setItem('name', response.data.user.name);
+
+            alert("Login successful!");
+          window.location.href = `http://13.203.210.30:5000/chat.html`; // redirect to login 
         }else {
             document.getElementById('error-msg').innerText = response.data.message;
         }

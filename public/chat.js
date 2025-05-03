@@ -1,10 +1,13 @@
 
+const BASE_URL = 'http://13.203.210.30:5000';
+
 const groupsDiv = document.getElementById('groups');
 const messagesDiv = document.getElementById('messages');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
 const currentGroupName = document.getElementById('current-group-name');
 const token = localStorage.getItem('token');
+console.log("chat page me token get ", token);
 const userId = localStorage.getItem('id');
 const userName = localStorage.getItem('name');
 
@@ -13,8 +16,10 @@ let messages = [];
 
 // Load Groups
 async function loadGroups() {
+const token = localStorage.getItem('token');
+console.log("load me token ", token);
   try {
-    const res = await axios.get('http://localhost:5000/groups', {
+    const res = await axios.get(`${BASE_URL}/groups`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const groups = res.data.data;
@@ -34,11 +39,14 @@ async function loadGroups() {
 
 // Create Group
 document.getElementById('create-group-btn').addEventListener('click', async () => {
-  const groupName = prompt('Enter Group Name:');
+const token = localStorage.getItem('token');
+console.log("load me token ", token);
+  
+const groupName = prompt('Enter Group Name:');
   if (!groupName) return;
 
   try {
-   const response = await axios.post('http://localhost:5000/groups', 
+   const response = await axios.post(`${BASE_URL}/groups`, 
       { name: groupName }, 
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -62,7 +70,7 @@ document.getElementById('invite-user-btn').addEventListener('click', async () =>
   if (!email || !currentGroupId) return;
 
   try {
-    await axios.post(`http://localhost:5000/groups/${currentGroupId}/invite`, 
+    await axios.post(`${BASE_URL}/groups/${currentGroupId}/invite`, 
       { email }, 
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -89,7 +97,7 @@ async function loadMessages() {
   if (!currentGroupId) return;
 
   try {
-    const res = await axios.get(`http://localhost:5000/messages/${currentGroupId}`, {
+    const res = await axios.get(`${BASE_URL}/messages/${currentGroupId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -141,7 +149,7 @@ messageForm.addEventListener('submit', async (e) => {
   messageInput.value = '';
 
   try {
-    const res = await axios.post('http://localhost:5000/messages', {
+    const res = await axios.post(`${BASE_URL}/messages`, {
       userId,
       message: text,
       groupId: currentGroupId
@@ -181,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     try {
-      const response = await axios.post(`http://localhost:5000/groups/${groupId}/promote`,
+      const response = await axios.post(`${BASE_URL}/groups/${groupId}/promote`,
         { userNameToPromote: userName },
         {
           headers: {
@@ -204,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
       try {
         await axios.post(
-          `http://localhost:5000/groups/${currentGroupId}/remove`, // Make sure route matches your backend
+          `${BASE_URL}/groups/${currentGroupId}/remove`, // Make sure route matches your backend
           { userEmailToRemove },
           { headers: { Authorization: `Bearer ${token}` } }
         );

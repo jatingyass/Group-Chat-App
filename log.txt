@@ -1,0 +1,14 @@
+Server is running on http://localhost:5000
+Executing (default): SELECT 1+1 AS result
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'Users' AND TABLE_SCHEMA = 'chat1'
+ Database connected successfully!
+Executing (default): SHOW INDEX FROM `Users`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'Groups' AND TABLE_SCHEMA = 'chat1'
+Executing (default): SHOW INDEX FROM `Groups`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'Messages' AND TABLE_SCHEMA = 'chat1'
+Executing (default): SHOW INDEX FROM `Messages`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'GroupMembers' AND TABLE_SCHEMA = 'chat1'
+Executing (default): SHOW INDEX FROM `GroupMembers`
+Database synced!
+Executing (default): SELECT `id`, `name`, `email`, `phone`, `password`, `createdAt`, `updatedAt` FROM `Users` AS `User` WHERE `User`.`email` = 'jatingyass9@gmail.com';
+Executing (default): INSERT INTO `Users` (`id`,`name`,`email`,`phone`,`password`,`createdAt`,`updatedAt`) VALUES (DEFAULT,?,?,?,?,?,?);
