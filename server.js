@@ -10,7 +10,7 @@ const app = express();
 
 //setup CORS 
 const corsOptions = {
-    origin: 'http://127.0.0.1:5501', // Frontend origin
+    origin: 'http://127.0.0.1:5500',  // Frontend origin
     methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
     credentials: true,
 };
@@ -32,6 +32,15 @@ app.use('/', signupRoute);
 app.use('/', loginRoute);
 // app.use('/', messageRoute);
 app.use('/', groupRoutes);
+
+app.get('/', (req, res) => {
+  res.send('Server is running correctly!');
+});
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
 
 
 sequelize.sync()

@@ -10,11 +10,9 @@ const authenticate = async (req, res, next) => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers['authorization'];
-    if (!authHeader) {
-      return res.status(401).json({ success: false, message: 'Authorization token missing' });
-    }
 
-    const token = authHeader.split(' ')[1]; // Bearer <token>
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+         console.log("dekh bhai auth me aa reha h token ", token);
     if (!token) {
       return res.status(401).json({ success: false, message: 'Token missing' });
     }
@@ -45,7 +43,7 @@ const authenticate = async (req, res, next) => {
 
 const isGroupAdmin = async (req, res, next) => {
   try {
-    const { groupId } = req.params;
+    const { groupId } = req.params || req.body.groupID;
     const userId = req.user.id;
 
     const admin = await GroupMember.findOne({
