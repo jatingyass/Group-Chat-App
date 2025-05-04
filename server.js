@@ -22,6 +22,9 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
+
+
 
 const signupRoute = require('./routes/signupRoutes');
 const loginRoute = require('./routes/loginRoutes');

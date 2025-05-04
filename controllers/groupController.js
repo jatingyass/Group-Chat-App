@@ -51,15 +51,22 @@ exports.getUserGroups = async (req, res) => {
 
 exports.sendMessage = async (req, res) => {
   try {
+      
     const { groupId, message } = req.body;
     const userId = req.user.id;
-
+     console.log("groupId, message", groupId, message);
+     console.log("userId", userId);
+       const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
     const newMessage = await Message.create({
       userId,
+      userName: user.name,
       groupId,
       message,
     });
-
+                console.log("msg save  toh hua h ", newMessage);
     res.status(201).json({ success: true, message: 'Message sent successfully', data: newMessage });
   } catch (err) {
     console.error("Error sending message:", err);
@@ -70,6 +77,9 @@ exports.sendMessage = async (req, res) => {
 
 exports.getGroupMessages = async (req, res) => {
   try {
+          console.log("Request Body:", req.body);
+    console.log("Authenticated User ID:", req.user.id);
+     
     const { groupId } = req.params;
     const userId = req.user.id;
 
