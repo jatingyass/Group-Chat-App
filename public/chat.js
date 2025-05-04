@@ -154,7 +154,10 @@ messageForm.addEventListener('submit', async (e) => {
       message: text,
       groupId: currentGroupId
     }, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}`,
+             'Content-Type': 'application/json'
+ 
+       }
     });
 
     const savedMessage = res.data.data;
