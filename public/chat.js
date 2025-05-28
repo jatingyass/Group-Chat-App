@@ -591,6 +591,46 @@ async function loadMessages() {
 }
 
 // Render Messages with support for file messages
+// function renderMessages() {
+//   messagesDiv.innerHTML = '';
+//   messages.forEach(msg => {
+//     console.log('Message:', msg);  // debug line
+
+//     const div = document.createElement('div');
+//     div.classList.add('message');
+
+//     const sender = parseInt(msg.userId) === parseInt(userId) ? 'You' : msg.userName;
+
+//     if (msg.type === 'file') {
+//       // File extension check
+//       const fileExt = msg.filename.split('.').pop().toLowerCase();
+
+//       if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExt)) {
+//         // Image preview
+//         div.innerHTML = `
+//           <strong>${sender}:</strong><br>
+//           <img src="${msg.url}" alt="${msg.filename}" style="max-width:200px; max-height:150px; cursor:pointer;" onclick="window.open('${msg.url}', '_blank')" />
+//           <br><small>${msg.filename}</small>
+//         `;
+//       } else {
+//         // Other file types: clickable filename with icon
+//         div.innerHTML = `
+//           <strong>${sender}:</strong> 
+//           <a href="${msg.url}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; color:#007bff;">
+//             📄 ${msg.filename}
+//           </a>
+//         `;
+//       }
+//     } else {
+//       // Text message
+//       div.innerHTML = `<strong>${sender}:</strong> ${msg.message}`;
+//     }
+
+//     messagesDiv.appendChild(div);
+//   });
+//   messagesDiv.scrollTop = messagesDiv.scrollHeight;
+// }
+
 function renderMessages() {
   messagesDiv.innerHTML = '';
   messages.forEach(msg => {
@@ -601,23 +641,26 @@ function renderMessages() {
 
     const sender = parseInt(msg.userId) === parseInt(userId) ? 'You' : msg.userName;
 
-    if (msg.type === 'file') {
-      // File extension check
-      const fileExt = msg.filename.split('.').pop().toLowerCase();
+    // Get file URL and safe filename
+    const fileUrl = msg.fileUrl || msg.url;
+    const filename = msg.filename || (fileUrl ? fileUrl.split('/').pop() : 'unknown.file');
+    const fileExt = filename.split('.').pop().toLowerCase();
 
+    if (fileUrl) {
+      // File message
       if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(fileExt)) {
         // Image preview
         div.innerHTML = `
           <strong>${sender}:</strong><br>
-          <img src="${msg.url}" alt="${msg.filename}" style="max-width:200px; max-height:150px; cursor:pointer;" onclick="window.open('${msg.url}', '_blank')" />
-          <br><small>${msg.filename}</small>
+          <img src="${fileUrl}" alt="${filename}" style="max-width:200px; max-height:150px; cursor:pointer;" onclick="window.open('${fileUrl}', '_blank')" />
+          <br><small>${filename}</small>
         `;
       } else {
-        // Other file types: clickable filename with icon
+        // Other file types
         div.innerHTML = `
           <strong>${sender}:</strong> 
-          <a href="${msg.url}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; color:#007bff;">
-            📄 ${msg.filename}
+          <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; color:#007bff;">
+            📄 ${filename}
           </a>
         `;
       }
@@ -631,23 +674,6 @@ function renderMessages() {
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// function renderMessages() {
-//   messagesDiv.innerHTML = '';
-//   messages.forEach(msg => {
-//     const div = document.createElement('div');
-//     div.classList.add('message');
-
-//     if (msg.type === 'file') {
-//       div.innerHTML = `<strong>${parseInt(msg.userId) === parseInt(userId) ? 'You' : msg.userName}:</strong> 
-//         <a href="${msg.url}" target="_blank" rel="noopener noreferrer">${msg.filename}</a>`;
-//     } else {
-//       div.innerHTML = `<strong>${parseInt(msg.userId) === parseInt(userId) ? 'You' : msg.userName}:</strong> ${msg.message}`;
-//     }
-
-//     messagesDiv.appendChild(div);
-//   });
-//   messagesDiv.scrollTop = messagesDiv.scrollHeight;
-// }
 
 // Send Message
 messageForm.addEventListener('submit', async (e) => {
@@ -799,7 +825,20 @@ document.getElementById("file-input").addEventListener("change", async function 
         'Content-Type': file.type
       }
     });
+   
+      // ✅ 3. Save fileUrl to DB
+    await axios.post(`${BASE_URL}/messages`, {
+      groupId: currentGroupId,
+      fileUrl: fileUrl,
+      message: '', // optional text
+    }, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
+    
     // 3. Now send the fileUrl to the group chat as a message using the same socket
     const fileMessage = {
       type: "file",
@@ -833,11 +872,11 @@ document.getElementById("file-input").addEventListener("change", async function 
 window.addEventListener('DOMContentLoaded', () => {
   loadGroups();
    // Load messages from localStorage (agar saved hain to)
-   const savedGroupId = localStorage.getItem('groupId');
-  const savedGroupName = localStorage.getItem('groupName');
+  //  const savedGroupId = localStorage.getItem('groupId');
+  // const savedGroupName = localStorage.getItem('groupName');
 
-  if (savedGroupId && savedGroupName) {
+  // if (savedGroupId && savedGroupName) {
     // convert id to number if needed
-    selectGroup(parseInt(savedGroupId), savedGroupName);
-  }
+    // selectGroup(parseInt(savedGroupId), savedGroupName);
+  // }
 });
