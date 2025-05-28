@@ -1,0 +1,12 @@
+# Node.js modules
+node_modules/
+
+# Environment variables
+.env
+
+# File uploads (like PDFs, images)
+uploads/
+
+# Log files
+*.log
+log.txt
