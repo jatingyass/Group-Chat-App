@@ -52,7 +52,7 @@ exports.getUserGroups = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
       
-    const { groupId, message } = req.body;
+    const { groupId, message, fileUrl } = req.body;
     const userId = req.user.id;
      console.log("groupId, message", groupId, message);
      console.log("userId", userId);
@@ -65,6 +65,7 @@ exports.sendMessage = async (req, res) => {
       userName: user.name,
       groupId,
       message,
+      fileUrl
     });
                 console.log("msg save  toh hua h ", newMessage);
     res.status(201).json({ success: true, message: 'Message sent successfully', data: newMessage });

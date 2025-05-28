@@ -1,6 +1,6 @@
 
-const baseURL = 'http://13.203.210.30:5000';
-
+//const baseURL = 'http://13.203.210.30:5000';
+const baseURL = 'http://localhost:5000'; 
 
 document.getElementById('signup-form').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -16,7 +16,7 @@ document.getElementById('signup-form').addEventListener('submit', function(e) {
     axios.post(`${baseURL}/signup`, { name, email, phone, password })
         .then(res => {
             alert('Signup successful!');
-            window.location.href = `http://127.0.0.1:5500/Group-Chat-App/public/login.html`; // redirect to login
+            window.location.href = `http://127.0.0.1:5501/Group-Chat-App/public/login.html`; // redirect to login
         })
         .catch(err => {
             if (err.response && err.response.status === 400) {

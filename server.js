@@ -91,10 +91,13 @@ app.use(express.urlencoded({ extended: true }));
 const signupRoute = require('./routes/signupRoutes');
 const loginRoute = require('./routes/loginRoutes');
 const groupRoutes = require('./routes/groupRoutes');
+const fileRoutes = require('./routes/fileRoutes');
 
 app.use('/', signupRoute);
 app.use('/', loginRoute);
 app.use('/', groupRoutes);
+app.use('/api/files', fileRoutes); // final route => /api/files/get-presigned-url
+
 
 app.get('/', (req, res) => {
   res.send('Server is running correctly!');

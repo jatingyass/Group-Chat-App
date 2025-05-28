@@ -60,8 +60,14 @@
         <!-- Send Message Form -->
         <div class="p-3 border-top">
           <form id="message-form" class="d-flex">
+            <div class="input-group">
+               <!-- 📎 Attachment Button -->
+                <label class="input-group-text" for="file-input" style="cursor: pointer;">📎</label>
+            <input type="file" id="file-input" style="display: none;" multiple>
+
             <input type="text" id="message-input" class="form-control me-2" placeholder="Type a message..." required>
             <button type="submit" class="btn btn-primary">Send</button>
+          </div>
           </form>
         </div>
 

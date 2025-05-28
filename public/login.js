@@ -1,6 +1,6 @@
 
-const baseURL = 'http://13.203.210.30:5000';
-
+//const baseURL = 'http://13.203.210.30:5000';
+const baseURL = 'http://localhost:5000'; 
 
 document.getElementById("login-form").addEventListener("submit", async function(event) {
     event.preventDefault(); 
@@ -18,7 +18,8 @@ document.getElementById("login-form").addEventListener("submit", async function(
             localStorage.setItem('name', response.data.user.name);
 
             alert("Login successful!");
-          window.location.href = `http://13.203.210.30:5000/chat.html`; // redirect to login 
+          //window.location.href = `http://13.203.210.30:5000/chat.html`; // redirect to login 
+            window.location.href = `http://localhost:5000/chat.html`; 
         }else {
             document.getElementById('error-msg').innerText = response.data.message;
         }
