@@ -6,12 +6,14 @@ const UserModel = require('./User');
 const MessageModel = require('./Message');
 const GroupModel = require('./Group');
 const GroupMemberModel = require('./GroupMember');
+const ArchivedMessageModel = require('./ArchivedMessage');
 
 // Initialize models
 const User = UserModel(sequelize, Sequelize.DataTypes);
 const Message = MessageModel(sequelize, Sequelize.DataTypes);
 const Group = GroupModel(sequelize, Sequelize.DataTypes);
 const GroupMember = GroupMemberModel(sequelize, Sequelize.DataTypes);
+const ArchivedMessage = ArchivedMessageModel(sequelize, Sequelize.DataTypes);
 
 // Associations for messages
 User.hasMany(Message, { foreignKey: 'userId', onDelete: 'CASCADE', as: 'messages' });
@@ -41,5 +43,6 @@ module.exports = {
     User,
     Message,
     Group,
-    GroupMember
+    GroupMember,
+    ArchivedMessage
 };

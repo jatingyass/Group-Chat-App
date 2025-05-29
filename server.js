@@ -122,6 +122,9 @@ io.on('connection', (socket) => {
   });
 });
 
+//archive old messages every 24 hours
+require('./cron/archiveJob');
+
 sequelize.sync()
   .then(() => {
     console.log('Database synced!');
