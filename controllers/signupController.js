@@ -1,26 +1,24 @@
-const { User } = require("../models");
-const bcrypt = require("bcryptjs"); 
+const bcrypt = require('bcryptjs');
+const { User } = require('../models');
+const ApiError = require('../utils/ApiError');
+const catchAsync = require('../utils/catchAsync');
 
-exports.signupUser = async (req, res) => {
-    const { name, email, phone, password } = req.body;
+const BCRYPT_ROUNDS = 12;
 
-    try{
-        const existingUser = await User.findOne({where: {email}});
-        if(existingUser){
-            return res.status(400).json({success: false, message: "Email already exists"});
-        }
-       
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = await User.create({
-            name,
-            email,
-            phone,
-            password: hashedPassword,
-        });
+exports.signupUser = catchAsync(async (req, res) => {
+  const { name, email, phone, password } = req.body;
 
-        res.status(201).json({success: true, message: "User created successfully", user: newUser});
-    }catch (err){
-        console.error("Error during signup:", err);
-        res.status(500).json({success: false, message: "Internal server error"});
-    }
-};    
+  const existing = await User.findOne({ where: { email } });
+  if (existing) {
+    throw ApiError.conflict('An account with this email already exists');
+  }
+
+  const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  const user = await User.create({ name, email, phone, password: hashedPassword });
+
+  res.status(201).json({
+    success: true,
+    message: 'Account created successfully',
+    data: { id: user.id, name: user.name, email: user.email },
+  });
+});

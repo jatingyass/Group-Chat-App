@@ -1,209 +1,252 @@
-// controllers/groupController.js
+const { Op } = require('sequelize');
+const {
+  metaDb,
+  Group,
+  GroupMember,
+  User,
+  getMessage,
+  getArchivedMessage,
+  getColdMessage,
+} = require('../models');
+const ApiError = require('../utils/ApiError');
+const catchAsync = require('../utils/catchAsync');
 
-const { Group, GroupMember, Message, User } = require('../models');
+exports.createGroup = catchAsync(async (req, res) => {
+  const { name, members } = req.body;
+  const userId = req.user.id;
 
-exports.createGroup = async (req, res) => {
-  try {
-    const { name, members } = req.body;
-    const userId = req.user.id;  // login user id (token se)
+  // Group + GroupMember inserts share the metaDb, so a single transaction
+  // is enough. Messages are sharded but we don't write any here.
+  const group = await metaDb.transaction(async (t) => {
+    const created = await Group.create({ name, createdBy: userId }, { transaction: t });
 
-    const group = await Group.create({ name, createdBy: userId});
+    const rows = [
+      { groupId: created.id, userId, is_admin: true, added_by: userId },
+      ...(members || [])
+        .filter((mid) => mid !== userId)
+        .map((mid) => ({
+          groupId: created.id,
+          userId: mid,
+          is_admin: false,
+          added_by: userId,
+        })),
+    ];
 
-    await GroupMember.create({ groupId: group.id, userId: userId, is_admin: true });
+    await GroupMember.bulkCreate(rows, { transaction: t, ignoreDuplicates: true });
+    return created;
+  });
 
-    // Add other members too
-    if (members && members.length > 0) {
-      const groupMembers = members.map(memberId => ({
-        groupId: group.id,
-        userId: memberId
-      }));
-      await GroupMember.bulkCreate(groupMembers);
-    }
+  res.status(201).json({
+    success: true,
+    message: 'Group created successfully',
+    data: group,
+  });
+});
 
-    res.status(201).json({ success: true, message: 'Group created successfully', data: group });
-  } catch (err) {
-    console.error("Error creating group:", err);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+exports.getUserGroups = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const groups = await Group.findAll({
+    include: {
+      model: GroupMember,
+      where: { userId },
+      attributes: ['is_admin'],
+    },
+    attributes: ['id', 'name', 'createdAt'],
+    order: [['createdAt', 'DESC']],
+  });
+  res.status(200).json({ success: true, data: groups });
+});
+
+exports.getGroupMembers = catchAsync(async (req, res) => {
+  const groupId = Number(req.params.groupId);
+  const members = await GroupMember.findAll({
+    where: { groupId },
+    include: { model: User, attributes: ['id', 'name', 'email'] },
+    order: [
+      ['is_admin', 'DESC'],
+      ['createdAt', 'ASC'],
+    ],
+  });
+
+  const data = members.map((m) => ({
+    id: m.User.id,
+    name: m.User.name,
+    email: m.User.email,
+    isAdmin: m.is_admin,
+    joinedAt: m.createdAt,
+  }));
+
+  res.status(200).json({ success: true, data });
+});
+
+exports.sendMessage = catchAsync(async (req, res) => {
+  const { groupId, message, fileUrl, fileName, fileMimeType, fileSize } = req.body;
+  const userId = req.user.id;
+  const userName = req.user.name;
+
+  const Message = getMessage(groupId);
+  const newMessage = await Message.create({
+    userId,
+    userName,
+    groupId,
+    message,
+    fileUrl,
+    fileName,
+    fileMimeType,
+    fileSize,
+  });
+
+  res.status(201).json({ success: true, data: newMessage });
+});
+
+exports.getGroupMessages = catchAsync(async (req, res) => {
+  const groupId = Number(req.params.groupId);
+  const { limit = 50, before } = req.query;
+
+  const where = { groupId };
+  if (before) where.id = { [Op.lt]: Number(before) };
+
+  const Message = getMessage(groupId);
+  const messages = await Message.findAll({
+    where,
+    order: [['createdAt', 'DESC']],
+    limit: Number(limit),
+  });
+
+  res.status(200).json({ success: true, data: messages.reverse() });
+});
+
+// Pulls older messages from the warm + cold tiers. Both tiers live on the
+// same shard for a given groupId, so this is still a single-shard read.
+exports.getArchivedMessages = catchAsync(async (req, res) => {
+  const groupId = Number(req.params.groupId);
+  const { before, limit = 50 } = req.query;
+
+  const beforeDate = before ? new Date(Number(before)) : new Date();
+  if (Number.isNaN(beforeDate.getTime())) {
+    throw ApiError.badRequest('"before" must be a unix-millis timestamp');
   }
-};
 
+  const ArchivedMessage = getArchivedMessage(groupId);
+  const ColdMessage = getColdMessage(groupId);
 
-exports.getUserGroups = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    
-    const groups = await Group.findAll({
-      include: {
-        model: GroupMember,
-        where: { userId },
-        attributes: [],
-      },
-      attributes: ['id', 'name'],
+  const order = [['createdAt', 'DESC']];
+  const lim = Math.min(Number(limit), 100);
+
+  const warm = await ArchivedMessage.findAll({
+    where: { groupId, createdAt: { [Op.lt]: beforeDate } },
+    order,
+    limit: lim,
+  });
+
+  let cold = [];
+  if (warm.length < lim) {
+    const oldestWarm = warm[warm.length - 1]?.createdAt || beforeDate;
+    cold = await ColdMessage.findAll({
+      where: { groupId, createdAt: { [Op.lt]: oldestWarm } },
+      order,
+      limit: lim - warm.length,
     });
-
-    res.status(200).json({ success: true, data: groups });
-  } catch (err) {
-    console.error("Error fetching groups:", err);
-    res.status(500).json({ success: false, message: 'Internal server error' });
   }
-};
 
+  const annotate = (rows, tier) =>
+    rows.map((m) => ({
+      id: m.id,
+      userId: m.userId,
+      userName: m.userName,
+      groupId: m.groupId,
+      message: m.message,
+      fileUrl: m.fileUrl,
+      fileName: m.fileName,
+      fileMimeType: m.fileMimeType,
+      fileSize: m.fileSize ? Number(m.fileSize) : null,
+      createdAt: m.createdAt,
+      tier,
+    }));
 
-exports.sendMessage = async (req, res) => {
-  try {
-      
-    const { groupId, message, fileUrl } = req.body;
-    const userId = req.user.id;
-     console.log("groupId, message", groupId, message);
-     console.log("userId", userId);
-       const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    const newMessage = await Message.create({
-      userId,
-      userName: user.name,
-      groupId,
-      message,
-      fileUrl
-    });
-                console.log("msg save  toh hua h ", newMessage);
-    res.status(201).json({ success: true, message: 'Message sent successfully', data: newMessage });
-  } catch (err) {
-    console.error("Error sending message:", err);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-};
+  const combined = [...annotate(warm, 'warm'), ...annotate(cold, 'cold')]
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
+  res.status(200).json({
+    success: true,
+    data: combined,
+    meta: { warmCount: warm.length, coldCount: cold.length },
+  });
+});
 
-exports.getGroupMessages = async (req, res) => {
-  try {
-          console.log("Request Body:", req.body);
-    console.log("Authenticated User ID:", req.user.id);
-     
-    const { groupId } = req.params;
-    const userId = req.user.id;
-
-    // Check membership
-    const isMember = await GroupMember.findOne({ where: { groupId, userId } });
-    if (!isMember) {
-      return res.status(403).json({ success: false, message: 'You are not a member of this group' });
-    }
-
-    const messages = await Message.findAll({
-      where: { groupId },
-      order: [['createdAt', 'ASC']],
-      // limit: 20,
-    });
-
-    res.status(200).json({ success: true, data: messages });
-  } catch (err) {
-    console.error("Error fetching group messages:", err);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-};
-
-//invite user to member
-exports.inviteUser = async (req, res) => {
-  const { groupId } = req.params;
+exports.inviteUser = catchAsync(async (req, res) => {
+  const groupId = Number(req.params.groupId);
   const { email } = req.body;
 
-  try {
-    console.log("Inviting:", email, "to group:", groupId);
-    const user = await User.findOne({ where: { email } });
-    
-    if (!user) {
-      console.log("User not found");
-      return res.status(404).json({ message: 'User not found.' });
-    }
+  const user = await User.findOne({ where: { email } });
+  if (!user) throw ApiError.notFound('User not found with that email');
 
-    const existingMember = await GroupMember.findOne({ where: { groupId, userId: user.id } });
-    if (existingMember) {
-      console.log("User already in group");
-      return res.status(400).json({ message: 'User already in group.' });
-    }
+  const existing = await GroupMember.findOne({ where: { groupId, userId: user.id } });
+  if (existing) throw ApiError.conflict('User is already in this group');
 
-    const isAdmin = await GroupMember.create({ groupId, userId: user.id });
-      console.log("isAdmin", isAdmin);
-     if (!isAdmin) {
-      return res.status(403).json({ message: 'Only admins can invite users.' });
-    }
-    res.status(200).json({ message: 'User invited successfully.' });
-  } catch (error) {
-    console.log("Error inviting user:", error);
-    res.status(500).json({ message: 'Server error.' });
-  }
-};
+  await GroupMember.create({
+    groupId,
+    userId: user.id,
+    is_admin: false,
+    added_by: req.user.id,
+  });
 
+  res.status(200).json({
+    success: true,
+    message: 'User invited successfully',
+    data: { id: user.id, name: user.name, email: user.email, isAdmin: false },
+  });
+});
 
-// promoteToAdmin.js
-exports.promoteToAdmin = async (req, res) => {
-  const { groupId } = req.params;
+exports.promoteToAdmin = catchAsync(async (req, res) => {
+  const groupId = Number(req.params.groupId);
   const { userNameToPromote } = req.body;
 
-  console.log("🟡 Promote request received for groupId:", groupId, "and user:", userNameToPromote);
+  const user = await User.findOne({ where: { name: userNameToPromote } });
+  if (!user) throw ApiError.notFound('User not found');
 
-  try {
-    // Step 1: Find the user by name
-    const user = await User.findOne({ where: { name: userNameToPromote } });
+  const member = await GroupMember.findOne({ where: { groupId, userId: user.id } });
+  if (!member) throw ApiError.notFound('User is not a member of this group');
 
-    if (!user) {
-      console.log("❌ User not found.");
-      return res.status(404).json({ message: 'User not found.' });
-    }
-
-    // Step 2: Check if user is a group member
-    const member = await GroupMember.findOne({
-      where: { groupId: parseInt(groupId), userId: user.id }
-    });
-
-    if (!member) {
-      console.log("❌ Not a group member.");
-      return res.status(404).json({ message: 'User is not a member of the group.' });
-    }
-
-    // Step 3: Promote to admin
-    member.is_admin = true;
-    await member.save();
-
-    console.log("✅ User promoted successfully");
-    res.status(200).json({ message: 'User promoted to admin.' });
-  } catch (error) {
-    console.error("❌ Error promoting user:", error);
-    res.status(500).json({ message: 'Server error.' });
+  if (member.is_admin) {
+    return res.status(200).json({ success: true, message: 'User is already an admin' });
   }
-};
 
+  member.is_admin = true;
+  await member.save();
+  res.status(200).json({ success: true, message: 'User promoted to admin' });
+});
 
-exports.removeMember = async (req, res) => {
-  const { groupId } = req.params;
+exports.removeMember = catchAsync(async (req, res) => {
+  const groupId = Number(req.params.groupId);
   const { userEmailToRemove } = req.body;
 
-  console.log("Remove Request: ", { groupId, userEmailToRemove });
+  const user = await User.findOne({ where: { email: userEmailToRemove } });
+  if (!user) throw ApiError.notFound('User not found');
 
-  try {
-    // ✅ Fix here: search by email
-    const user = await User.findOne({ where: { email: userEmailToRemove } });
-
-    if (!user) {
-      console.log("❌ User not found.");
-      return res.status(404).json({ message: 'User not found.' });
-    }
-
-    const member = await GroupMember.findOne({
-      where: { groupId: parseInt(groupId), userId: user.id }
-    });
-
-    if (!member) {
-      console.log("❌ Not a group member.");
-      return res.status(404).json({ message: 'User is not a member of the group.' });
-    }
-
-    await member.destroy();
-
-    res.status(200).json({ message: 'User removed from the group.' });
-  } catch (error) {
-    console.error("Error removing member:", error);
-    res.status(500).json({ message: 'Server error.' });
+  const group = await Group.findByPk(groupId);
+  if (group && group.createdBy === user.id) {
+    throw ApiError.forbidden('Cannot remove the group creator');
   }
-};
+
+  const deleted = await GroupMember.destroy({ where: { groupId, userId: user.id } });
+  if (!deleted) throw ApiError.notFound('User is not a member of this group');
+
+  res.status(200).json({ success: true, message: 'User removed from group' });
+});
+
+exports.leaveGroup = catchAsync(async (req, res) => {
+  const groupId = Number(req.params.groupId);
+  const userId = req.user.id;
+
+  const group = await Group.findByPk(groupId);
+  if (!group) throw ApiError.notFound('Group not found');
+  if (group.createdBy === userId) {
+    throw ApiError.forbidden('Group creator cannot leave; delete the group instead');
+  }
+
+  const deleted = await GroupMember.destroy({ where: { groupId, userId } });
+  if (!deleted) throw ApiError.notFound('You are not a member of this group');
+
+  res.status(200).json({ success: true, message: 'Left the group' });
+});

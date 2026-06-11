@@ -1,46 +1,35 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { User } = require('../models');
-const dotenv = require('dotenv');
+const env = require('../config/env');
+const ApiError = require('../utils/ApiError');
+const catchAsync = require('../utils/catchAsync');
 
-dotenv.config();
+const signToken = (user) =>
+  jwt.sign(
+    { id: user.id, email: user.email },
+    env.JWT_SECRET,
+    { expiresIn: env.JWT_EXPIRES_IN, issuer: 'group-chat-app' },
+  );
 
-exports.loginUser = async (req, res) => {
-    const { email, password } = req.body;
+exports.loginUser = catchAsync(async (req, res) => {
+  const { email, password } = req.body;
 
-    if(!email || !password) {
-        return res.status(400).json({ success: false, message: 'Email and password are required' });
-    }
+  const user = await User.findOne({ where: { email } });
+  // Same error message for unknown email + wrong password to prevent user enumeration
+  const genericError = ApiError.unauthorized('Invalid email or password');
+  if (!user) throw genericError;
 
-    try{
-        const user = await User.findOne({ where: { email } });
-        if (!user) {
-            return res.status(401).json({ success: false, message: 'Invalid email or password' });
-        }
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) throw genericError;
 
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return res.status(401).json({ success: false, message: 'Invalid password' });
-        }
-
-        const token = jwt.sign({ 
-            id: user.id,
-            email: user.email,
-
-        }, 
-        process.env.JWT_SECRET, 
-        { expiresIn: '1h' }
-       );
-
-        res.status(200).json({ 
-            success: true,
-            message: 'Login successful',
-            token, 
-            user: {id: user.id, name: user.name }
-        });
-    }
-    catch(err){
-        console.error("Error during login:", err);
-        res.status(500).json({ success: false, message: 'Internal server error' });
-    }
-};
+  const token = signToken(user);
+  res.status(200).json({
+    success: true,
+    message: 'Logged in successfully',
+    data: {
+      token,
+      user: { id: user.id, name: user.name, email: user.email },
+    },
+  });
+});

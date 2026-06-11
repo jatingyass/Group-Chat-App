@@ -1,22 +1,86 @@
 const express = require('express');
-const router = express.Router();
 const groupController = require('../controllers/groupController');
-const messageController = require('../controllers/messageController');
-const {authenticate, isGroupAdmin} = require('../middlewares/authenticate'); // Token check karne ke liye
+const { authenticate, isGroupAdmin } = require('../middlewares/authenticate');
 const isGroupMember = require('../middlewares/isGroupMember');
+const validate = require('../middlewares/validate');
+const {
+  createGroupSchema,
+  groupIdParamSchema,
+  inviteUserSchema,
+  promoteUserSchema,
+  removeMemberSchema,
+} = require('../validation/group.schema');
+const {
+  sendMessageSchema,
+  getMessagesParamSchema,
+  getMessagesQuerySchema,
+} = require('../validation/message.schema');
 
-// Groups related
-router.post('/groups', authenticate, groupController.createGroup);
-router.get('/groups', authenticate, groupController.getUserGroups);
-// router.post('/groups/:groupId/invite', authenticate,  groupController.inviteUser);
+const router = express.Router();
 
-router.post('/groups/:groupId/invite', authenticate, isGroupAdmin,  groupController.inviteUser);
-  
-  router.post('/groups/:groupId/promote', authenticate, isGroupAdmin, groupController.promoteToAdmin);
-  router.post('/groups/:groupId/remove', authenticate, isGroupAdmin, groupController.removeMember);
+router.use(authenticate);
 
-// Message routes
-router.get('/messages/:groupId', authenticate, isGroupMember, groupController.getGroupMessages);
-router.post('/messages', authenticate, isGroupMember, groupController.sendMessage);
+// Groups
+router.post('/groups', validate(createGroupSchema), groupController.createGroup);
+router.get('/groups', groupController.getUserGroups);
+
+// Members
+router.get(
+  '/groups/:groupId/members',
+  validate(groupIdParamSchema, 'params'),
+  isGroupMember,
+  groupController.getGroupMembers,
+);
+
+router.post(
+  '/groups/:groupId/leave',
+  validate(groupIdParamSchema, 'params'),
+  isGroupMember,
+  groupController.leaveGroup,
+);
+
+// Group admin actions
+router.post(
+  '/groups/:groupId/invite',
+  validate(groupIdParamSchema, 'params'),
+  isGroupAdmin,
+  validate(inviteUserSchema),
+  groupController.inviteUser,
+);
+router.post(
+  '/groups/:groupId/promote',
+  validate(groupIdParamSchema, 'params'),
+  isGroupAdmin,
+  validate(promoteUserSchema),
+  groupController.promoteToAdmin,
+);
+router.post(
+  '/groups/:groupId/remove',
+  validate(groupIdParamSchema, 'params'),
+  isGroupAdmin,
+  validate(removeMemberSchema),
+  groupController.removeMember,
+);
+
+// Messages
+router.get(
+  '/messages/:groupId',
+  validate(getMessagesParamSchema, 'params'),
+  validate(getMessagesQuerySchema, 'query'),
+  isGroupMember,
+  groupController.getGroupMessages,
+);
+router.get(
+  '/messages/:groupId/archive',
+  validate(getMessagesParamSchema, 'params'),
+  isGroupMember,
+  groupController.getArchivedMessages,
+);
+router.post(
+  '/messages',
+  validate(sendMessageSchema),
+  isGroupMember,
+  groupController.sendMessage,
+);
 
 module.exports = router;

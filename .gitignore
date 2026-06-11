@@ -1,12 +1,44 @@
-# Node.js modules
+# Dependencies
 node_modules/
+frontend/node_modules/
 
-# Environment variables
+# Environment files (never commit secrets)
 .env
+.env.local
+.env.*.local
+backend.env
+*.env
 
-# File uploads (like PDFs, images)
-uploads/
+# Build output
+dist/
+build/
+frontend/dist/
 
-# Log files
+# Logs
+logs/
 *.log
 log.txt
+npm-debug.log*
+
+# Uploads (local file storage for dev)
+uploads/
+public/uploads/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+.idea/
+
+# Testing / Coverage
+coverage/
+.nyc_output/
+
+# Docker
+docker-volume-data/
+
+# Misc
+*.pem
+*.key
+.cache/

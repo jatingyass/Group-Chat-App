@@ -1,19 +1,8 @@
-const {Sequelize} = require('sequelize');
-require('dotenv').config();
+// Backward-compatible shim: previous code imported `{ sequelize, connect }`
+// from `./config/db`. The real implementation now lives in `./config/shards`.
+const { metaDb, connectAll } = require('./shards');
 
-const sequelize = new Sequelize(
-    process.env.DB_NAME,
-    process.env.DB_USER,
-    process.env.DB_PASSWORD,
-    {
-      host: process.env.DB_HOST,
-      dialect: 'mysql',
-    }
-);
-
-
-sequelize.authenticate()
-  .then(() => console.log(' Database connected successfully!'))
-  .catch(err => console.error(' Database connection error:', err));
-
-module.exports = sequelize;
+module.exports = {
+  sequelize: metaDb,
+  connect: connectAll,
+};

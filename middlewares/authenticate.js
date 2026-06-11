@@ -1,68 +1,50 @@
-// middlewares/authenticate.js
-
 const jwt = require('jsonwebtoken');
-const dotenv = require('dotenv');
 const { User, GroupMember } = require('../models');
+const env = require('../config/env');
+const ApiError = require('../utils/ApiError');
+const catchAsync = require('../utils/catchAsync');
 
-dotenv.config();
-
-const authenticate = async (req, res, next) => {
-  try {
-    // Get token from Authorization header
-    const authHeader = req.headers['authorization'];
-
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
-         console.log("dekh bhai auth me aa reha h token ", token);
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'Token missing' });
-    }
-
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Find user from database
-    const user = await User.findByPk(decoded.id);
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'User not found' });
-    }
-
-    
-    req.user = {
-      id: user.id,
-      name: user.name,
-      
-    };
-
-    next(); 
-  } catch (err) {
-    console.error("Authentication error:", err);
-    res.status(401).json({ success: false, message: 'Invalid or expired token' });
+const extractToken = (req) => {
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    return header.slice(7);
   }
+  return null;
 };
 
-
-const isGroupAdmin = async (req, res, next) => {
-  try {
-    const { groupId } = req.params || req.body.groupID;
-    const userId = req.user.id;
-
-    const admin = await GroupMember.findOne({
-      where: {
-        groupId,
-        userId,
-        is_admin: true
-      }
-    });
-
-    if (!admin) {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-
-    next();
-  } catch (err) {
-    console.error("Admin check error:", err);
-    res.status(500).json({ message: 'Server error' });
+const authenticate = catchAsync(async (req, res, next) => {
+  const token = extractToken(req);
+  if (!token) {
+    throw ApiError.unauthorized('Authentication token missing');
   }
-};
 
-module.exports = {authenticate, isGroupAdmin};
+  const decoded = jwt.verify(token, env.JWT_SECRET);
+
+  const user = await User.findByPk(decoded.id, {
+    attributes: ['id', 'name', 'email'],
+  });
+  if (!user) {
+    throw ApiError.unauthorized('User no longer exists');
+  }
+
+  req.user = { id: user.id, name: user.name, email: user.email };
+  next();
+});
+
+const isGroupAdmin = catchAsync(async (req, res, next) => {
+  const groupId = Number(req.params.groupId || req.body.groupId);
+  if (!Number.isInteger(groupId) || groupId <= 0) {
+    throw ApiError.badRequest('Valid groupId is required');
+  }
+
+  const admin = await GroupMember.findOne({
+    where: { groupId, userId: req.user.id, is_admin: true },
+  });
+
+  if (!admin) {
+    throw ApiError.forbidden('Only group admins can perform this action');
+  }
+  next();
+});
+
+module.exports = { authenticate, isGroupAdmin };

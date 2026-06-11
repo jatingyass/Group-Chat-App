@@ -1,97 +1,69 @@
-// const { Message, ArchivedMessage } = require('../models');
-// const { Op } = require('sequelize');
+// Hot -> Warm: moves Messages older than ARCHIVE_AGE_DAYS into ArchivedMessages.
+// Shard-aware: runs the move on every shard's connection independently.
 
-// async function archiveOldMessages() {
-//   const oneMinuteAgo = new Date();
-//   oneMinuteAgo.setMinutes(oneMinuteAgo.getMinutes() - 1); // ⬅️ yeh change karo 30 din se 1 min
-
-//   try {
-//     const oldMessages = await Message.findAll({
-//       where: {
-//         createdAt: {
-//           [Op.lt]: oneMinuteAgo
-//         }
-//       }
-//     });
-
-//     if (oldMessages.length === 0) {
-//       console.log("📭 No old messages to archive.");
-//       return;
-//     }
-
-//     const archivedData = oldMessages.map(msg => ({
-//       id: msg.id,
-//       userId: msg.userId,
-//       userName: msg.userName,
-//       groupId: msg.groupId,
-//       message: msg.message,
-//       fileUrl: msg.fileUrl,
-//       createdAt: msg.createdAt
-//     }));
-
-//     await ArchivedMessage.bulkCreate(archivedData);
-//     await Message.destroy({
-//       where: {
-//         createdAt: {
-//           [Op.lt]: oneMinuteAgo
-//         }
-//       }
-//     });
-
-//     console.log(`✅ Archived ${archivedData.length} messages.`);
-//   } catch (err) {
-//     console.error("❌ Error archiving messages:", err);
-//   }
-// }
-
-// module.exports = archiveOldMessages;
-
-
-//one day archive job
-const { Message, ArchivedMessage } = require('../models');
 const { Op } = require('sequelize');
+const { allMessageShards } = require('../models');
+const logger = require('../utils/logger');
 
-async function archiveOldMessages() {
-  const oneDayAgo = new Date();
-  oneDayAgo.setDate(oneDayAgo.getDate() - 1); // ⬅️ Yeh hai 1 din ka logic
+const ARCHIVE_AGE_DAYS = 1;
 
+async function archiveOnShard(shard, cutoff) {
+  const t = await shard.sequelize.transaction();
   try {
-    const oldMessages = await Message.findAll({
-      where: {
-        createdAt: {
-          [Op.lt]: oneDayAgo
-        }
-      }
+    const oldMessages = await shard.Message.findAll({
+      where: { createdAt: { [Op.lt]: cutoff } },
+      transaction: t,
     });
 
     if (oldMessages.length === 0) {
-      console.log("📭 No old messages to archive.");
-      return;
+      await t.commit();
+      return 0;
     }
 
-    const archivedData = oldMessages.map(msg => ({
-      id: msg.id,
-      userId: msg.userId,
-      userName: msg.userName,
-      groupId: msg.groupId,
-      message: msg.message,
-      fileUrl: msg.fileUrl,
-      createdAt: msg.createdAt
+    const archivedData = oldMessages.map((m) => ({
+      id: m.id,
+      userId: m.userId,
+      userName: m.userName,
+      groupId: m.groupId,
+      message: m.message,
+      fileUrl: m.fileUrl,
+      fileName: m.fileName,
+      fileMimeType: m.fileMimeType,
+      fileSize: m.fileSize,
+      createdAt: m.createdAt,
     }));
 
-    await ArchivedMessage.bulkCreate(archivedData);
-    await Message.destroy({
-      where: {
-        createdAt: {
-          [Op.lt]: oneDayAgo
-        }
-      }
+    await shard.ArchivedMessage.bulkCreate(archivedData, { transaction: t });
+    await shard.Message.destroy({
+      where: { createdAt: { [Op.lt]: cutoff } },
+      transaction: t,
     });
 
-    console.log(`✅ Archived ${archivedData.length} messages.`);
+    await t.commit();
+    return archivedData.length;
   } catch (err) {
-    console.error("❌ Error archiving messages:", err);
+    await t.rollback();
+    throw err;
   }
+}
+
+async function archiveOldMessages() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - ARCHIVE_AGE_DAYS);
+
+  const shards = allMessageShards();
+  let total = 0;
+  for (let i = 0; i < shards.length; i++) {
+    try {
+      const moved = await archiveOnShard(shards[i], cutoff);
+      total += moved;
+      if (moved > 0) logger.info(`archive (warm) shard ${i}: moved ${moved} rows`);
+    } catch (err) {
+      logger.error(`archive (warm) shard ${i} failed: ${err.message}`);
+    }
+  }
+  if (total === 0) logger.info('archive (warm): no rows to move');
+  return { archived: total };
 }
 
 module.exports = archiveOldMessages;
